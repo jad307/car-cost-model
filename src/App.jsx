@@ -2,42 +2,68 @@ import { useState, useMemo } from "react";
 
 const fmt = (n) => n < 0 ? `-$${Math.abs(Math.round(n)).toLocaleString()}` : `$${Math.round(n).toLocaleString()}`;
 const fmtMi = (n) => `$${n.toFixed(2)}/mi`;
-const COLORS = { volvo: "#7c3aed", crv: "#dc2626", rav4h: "#0369a1", hybrid: "#15803d" };
+
 const VOLVO_MPG = 24;
-const HYBRID_MPG = 36;
-const volvoTradeIn = 15000;
+const HOME_ELEC = 0.35, TESLA_EFF = 4.1, PHEV_EFF = 3.4;
+const L2_LABEL = "$0.35/kWh apartment L2 charger";
+const SALES_TAX = 0.0875;
+const TUCSON_IDS = ["tucsonhv", "tucson"];
+
+const VEHICLES = [
+  { id:"volvo",     label:"Keep Volvo V90",          color:"#6d28d9", msrp:0,      mpg:VOLVO_MPG, dep:11, ins:1200, maint:1400, note:"80k mi · confirmed $1,200/yr ins" },
+  { id:"crv",       label:"CR-V Sport Touring HV",   color:"#dc2626", msrp:43700,  mpg:35,        dep:14, ins:1500, maint:750,  note:"EPA 37 mpg AWD · Edmunds real-world: 33.3 mpg hwy" },
+  { id:"rav4h",     label:"RAV4 Hybrid XSE ⭐",      color:"#0369a1", msrp:42750,  mpg:41,        dep:13, ins:1450, maint:750,  note:"EPA 41 mpg AWD · recommended trim" },
+  { id:"crosstrek", label:"Crosstrek Hybrid Prem",   color:"#166534", msrp:40000,  mpg:36,        dep:14, ins:1400, maint:800,  note:"Non-plug-in · 36 mpg" },
+  { id:"tucsonhv",  label:"Tucson Hybrid Limited",   color:"#0e7490", msrp:43425,  mpg:33,        dep:14, ins:1550, maint:780,  note:"EPA 36 mpg AWD · real-world hwy ~32–33 mpg · AWD std" },
+  { id:"tucson",    label:"Tucson Limited PHEV",      color:"#7c3aed", msrp:50150,  mpg:35,        dep:15, ins:1600, maint:800,  note:`⚠️ $50k+ · 32mi EV (${L2_LABEL}) · 35 mpg hybrid`, evRange:32 },
+  { id:"niro",      label:"Kia Niro SX Touring",      color:"#c2410c", msrp:37285,  mpg:49,        dep:13, ins:1350, maint:700,  note:"49 mpg · FWD only (no AWD) · $37,285 incl dest" },
+  { id:"tesla",     label:"Tesla Model 3 Prem RWD",  color:"#0f766e", msrp:44130,  mpg:0,         dep:18, ins:2200, maint:550,  note:`363 mi range · 4.1 mi/kWh · ${L2_LABEL}`, evRange:999 },
+];
+
+function calcHYSBenefit(totalOutlay, loanYears, hysRate) {
+  if (totalOutlay <= 0 || loanYears <= 0) return 0;
+  const monthlyRate = hysRate / 100 / 12;
+  const nPayments = loanYears * 12;
+  const pmt = totalOutlay / nPayments;
+  let bal = totalOutlay;
+  for (let m = 1; m <= nPayments; m++) {
+    bal *= (1 + monthlyRate);
+    bal -= pmt;
+  }
+  return Math.max(0, bal);
+}
 
 function Slider({ label, value, min, max, step, display, onChange, note, warn }) {
   return (
-    <div style={{ marginBottom: 12 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-        <span style={{ fontSize: 12, color: "#374151" }}>{label}</span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "#1d4ed8" }}>{display(value)}</span>
+    <div style={{ marginBottom: 11 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+        <span style={{ fontSize: 11.5, color: "#374151" }}>{label}</span>
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: "#1d4ed8" }}>{display(value)}</span>
       </div>
       <input type="range" min={min} max={max} step={step} value={value}
         onChange={e => onChange(Number(e.target.value))}
         style={{ width: "100%", accentColor: "#1d4ed8" }} />
-      {note && <div style={{ fontSize: 10.5, color: warn ? "#b91c1c" : "#9ca3af", marginTop: 2 }}>{note}</div>}
+      {note && <div style={{ fontSize: 10, color: warn ? "#b91c1c" : "#9ca3af", marginTop: 1 }}>{note}</div>}
     </div>
   );
 }
 
-function SH({ t }) {
-  return <div style={{ fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: 1, color: "#6b7280", marginBottom: 8, marginTop: 12 }}>{t}</div>;
+function SH({ t, color }) {
+  return <div style={{ fontWeight: 700, fontSize: 10.5, textTransform: "uppercase", letterSpacing: 1, color: color || "#6b7280", marginBottom: 7, marginTop: 12, borderBottom: "1px solid #e5e7eb", paddingBottom: 3 }}>{t}</div>;
 }
 
 function Bar({ label, sub, value, max, color }) {
   return (
-    <div style={{ marginBottom: 10 }}>
+    <div style={{ marginBottom: 8 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
         <div>
-          <span style={{ fontSize: 12.5, fontWeight: 600, color }}>{label}</span>
-          {sub && <span style={{ fontSize: 10.5, color: "#6b7280", marginLeft: 6 }}>{sub}</span>}
+          <span style={{ fontSize: 11.5, fontWeight: 600, color }}>{label}</span>
+          {sub && <span style={{ fontSize: 10, color: "#6b7280", marginLeft: 6 }}>{sub}</span>}
         </div>
-        <span style={{ fontSize: 12.5, fontWeight: 700, color }}>{fmt(value)}</span>
+        <span style={{ fontSize: 11.5, fontWeight: 700, color }}>{fmt(value)}</span>
       </div>
-      <div style={{ background: "#f3f4f6", borderRadius: 4, height: 9, overflow: "hidden" }}>
-        <div style={{ background: color, width: `${Math.min(100, (value / max) * 100)}%`, height: "100%", borderRadius: 4, transition: "width 0.3s" }} />
+      <div style={{ background: "#f3f4f6", borderRadius: 3, height: 8, overflow: "hidden" }}>
+        <div style={{ background: color, width: `${Math.min(100, (value / max) * 100)}%`, height: "100%", borderRadius: 3 }} />
       </div>
     </div>
   );
@@ -54,265 +80,281 @@ export default function App() {
   const [gasPrice, setGasPrice] = useState(4.74);
   const [gasInflation, setGasInflation] = useState(12);
 
-  // TVM
+  // Financial
+  const [tradeIn, setTradeIn] = useState(15000);
   const [investReturn, setInvestReturn] = useState(8);
+  const [tucsonFinance, setTucsonFinance] = useState(false);
 
-  // CR-V Sport Touring Hybrid
-  const [crvPrice, setCrvPrice] = useState(43700);
-  const [crvMPG, setCrvMPG] = useState(35);
-  const [crvDepRate, setCrvDepRate] = useState(14);
-  const [crvInsurance, setCrvInsurance] = useState(1500);
-  const [crvMaint, setCrvMaint] = useState(750);
+  // Per-vehicle overrides
+  const [overrides, setOverrides] = useState({});
+  const getV = (id, key) => overrides[id]?.[key] ?? VEHICLES.find(v => v.id === id)[key];
+  const setV = (id, key, val) => setOverrides(o => ({ ...o, [id]: { ...o[id], [key]: val } }));
 
-  // RAV4 Hybrid XSE
-  const [rav4hPrice, setRav4hPrice] = useState(42750);
-  const [rav4hMPG, setRav4hMPG] = useState(41);
-  const [rav4hDepRate, setRav4hDepRate] = useState(13);
-  const [rav4hInsurance, setRav4hInsurance] = useState(1450);
-  const [rav4hMaint, setRav4hMaint] = useState(750);
+  // Financing module
+  const [showFinancing, setShowFinancing] = useState(false);
+  const [loanYears, setLoanYears] = useState(4);
+  const [hysRate, setHysRate] = useState(4.5);
+  const [selectedVehicle, setSelectedVehicle] = useState("tucsonhv");
 
-  // Crosstrek Hybrid Premium
-  const [hybridPrice, setHybridPrice] = useState(40000);
-  const [hybridDepRate, setHybridDepRate] = useState(14);
-  const [hybridInsurance, setHybridInsurance] = useState(1400);
-  const [hybridMaint, setHybridMaint] = useState(800);
+  const wpy = 52;
 
-  // Volvo
-  const [volvoDepRate, setVolvoDepRate] = useState(11);
-  const [volvoInsurance, setVolvoInsurance] = useState(1200);
-  const [volvoMaint, setVolvoMaint] = useState(1400);
-
-  const c = useMemo(() => {
-    const wpy = 52;
+  const results = useMemo(() => {
     const avgGas = gasPrice * (1 + (gasInflation / 100) * (years - 1) / 2);
     const commuteMiPerWk = commuteDays * commuteMiles;
     const totalMiPerWk = commuteMiPerWk + cityMilesPerWeek;
     const totalMi = totalMiPerWk * wpy * years;
 
-    // --- FUEL ---
-    const volvoFuel = (totalMi / VOLVO_MPG) * avgGas;
-    const crvFuel   = (totalMi / crvMPG)   * avgGas;
-    const rav4hFuel = (totalMi / rav4hMPG) * avgGas;
-    const hybridFuel = (totalMi / HYBRID_MPG) * avgGas;
+    return VEHICLES.map(veh => {
+      const msrp  = getV(veh.id, "msrp");
+      const mpg   = getV(veh.id, "mpg");
+      const dep   = getV(veh.id, "dep");
+      const ins   = getV(veh.id, "ins");
+      const maint = getV(veh.id, "maint");
+      const evRange = veh.evRange || 0;
+      const isTucson = TUCSON_IDS.includes(veh.id);
+      const isFinanced = isTucson && tucsonFinance;
 
-    // --- NET PURCHASE ---
-    const crvNet    = crvPrice    - volvoTradeIn;
-    const rav4hNet  = rav4hPrice  - volvoTradeIn;
-    const hybridNet = hybridPrice - volvoTradeIn;
+      // FUEL
+      let fuel;
+      if (veh.id === "volvo") {
+        fuel = (totalMi / VOLVO_MPG) * avgGas;
+      } else if (veh.id === "tesla") {
+        fuel = (totalMi / TESLA_EFF) * HOME_ELEC;
+      } else if (evRange > 0) {
+        // PHEV: per-day modeling
+        const cityDpW = 7 - commuteDays;
+        const cityMpD = cityDpW > 0 ? cityMilesPerWeek / cityDpW : 0;
+        const comElec = Math.min(evRange, commuteMiles);
+        const comGas  = Math.max(0, commuteMiles - evRange);
+        const citElec = Math.min(evRange, cityMpD);
+        const citGas  = Math.max(0, cityMpD - evRange);
+        const elecMiYr = (comElec * commuteDays + citElec * cityDpW) * wpy;
+        const gasMiYr  = (comGas  * commuteDays + citGas  * cityDpW) * wpy;
+        fuel = (elecMiYr * years) / PHEV_EFF * HOME_ELEC + (gasMiYr * years / mpg) * avgGas;
+      } else {
+        fuel = (totalMi / mpg) * avgGas;
+      }
 
-    // --- OPPORTUNITY COST ---
-    const r = investReturn / 100;
-    const growth = Math.pow(1 + r, years) - 1;
-    const crvOpp    = crvNet    * growth;
-    const rav4hOpp  = rav4hNet  * growth;
-    const hybridOpp = hybridNet * growth;
+      // PURCHASE
+      const salesTax    = msrp > 0 ? msrp * SALES_TAX : 0;
+      const netOutlay   = msrp > 0 ? Math.max(0, msrp - tradeIn) : 0;
+      const totalPurch  = netOutlay + salesTax;
 
-    // --- DEPRECIATION ---
-    const volvoEnd  = volvoTradeIn * Math.pow(1 - volvoDepRate  / 100, years);
-    const crvEnd    = crvPrice     * Math.pow(1 - crvDepRate    / 100, years);
-    const rav4hEnd  = rav4hPrice   * Math.pow(1 - rav4hDepRate  / 100, years);
-    const hybridEnd = hybridPrice  * Math.pow(1 - hybridDepRate / 100, years);
-    const volvoDep  = volvoTradeIn - volvoEnd;
+      // OPPORTUNITY COST — zeroed for financed Tucsons
+      const r   = investReturn / 100;
+      const opp = isFinanced ? 0 : totalPurch * (Math.pow(1 + r, years) - 1);
 
-    // --- INSURANCE ---
-    const vI = volvoInsurance  * years;
-    const cI = crvInsurance    * years;
-    const rI = rav4hInsurance  * years;
-    const hI = hybridInsurance * years;
+      // DEPRECIATION
+      const baseVal = msrp > 0 ? msrp : tradeIn;
+      const endVal  = baseVal * Math.pow(1 - dep / 100, years);
+      const depCost = baseVal - endVal;
 
-    // --- MAINTENANCE ---
-    const vM = volvoMaint  * years;
-    const cM = crvMaint    * years;
-    const rM = rav4hMaint  * years;
-    const hM = hybridMaint * years;
+      // MAINTENANCE & INSURANCE
+      const totalIns   = ins   * years;
+      const totalMaint = maint * years;
 
-    // --- NET TRUE COST ---
-    const vCost = volvoFuel + vM + vI + volvoDep;
-    const cCost = crvNet    + crvFuel    + cM + cI - crvEnd    + crvOpp;
-    const rCost = rav4hNet  + rav4hFuel  + rM + rI - rav4hEnd  + rav4hOpp;
-    const hCost = hybridNet + hybridFuel + hM + hI - hybridEnd + hybridOpp;
+      // NET TRUE COST
+      const netCost = veh.id === "volvo"
+        ? fuel + totalIns + totalMaint + depCost
+        : totalPurch + fuel + totalIns + totalMaint - endVal + opp;
 
-    return {
-      totalMi, totalMiPerWk, avgGas,
-      fuel:    { v: volvoFuel, c: crvFuel,   r: rav4hFuel,  h: hybridFuel },
-      ins:     { v: vI,        c: cI,        r: rI,         h: hI },
-      maint:   { v: vM,        c: cM,        r: rM,         h: hM },
-      dep:     { v: volvoDep,  c: crvPrice - crvEnd,   r: rav4hPrice - rav4hEnd,   h: hybridPrice - hybridEnd },
-      residual:{ v: volvoEnd,  c: crvEnd,    r: rav4hEnd,   h: hybridEnd },
-      netPurch:{ v: 0,         c: crvNet,    r: rav4hNet,   h: hybridNet },
-      opp:     { v: 0,         c: crvOpp,    r: rav4hOpp,   h: hybridOpp },
-      total:   { v: vCost,     c: cCost,     r: rCost,      h: hCost },
-      fuelSavings: { c: volvoFuel - crvFuel, r: volvoFuel - rav4hFuel, h: volvoFuel - hybridFuel },
-    };
-  }, [years, gasPrice, gasInflation, investReturn,
-      crvPrice, crvMPG, crvDepRate, crvInsurance, crvMaint,
-      rav4hPrice, rav4hMPG, rav4hDepRate, rav4hInsurance, rav4hMaint,
-      hybridPrice, hybridDepRate, hybridInsurance, hybridMaint,
-      volvoDepRate, volvoInsurance, volvoMaint,
-      commuteDays, commuteMiles, cityMilesPerWeek]);
+      return {
+        id: veh.id, label: veh.label, color: veh.color, note: veh.note,
+        msrp, netOutlay, salesTax, totalPurch, fuel, opp, depCost,
+        ins: totalIns, maint: totalMaint, endVal, isFinanced,
+        total: netCost,
+      };
+    });
+  }, [years, commuteDays, commuteMiles, cityMilesPerWeek,
+      gasPrice, gasInflation, tradeIn, investReturn, tucsonFinance, overrides]);
 
-  const totals = [c.total.v, c.total.c, c.total.r, c.total.h];
-  const minTotal = Math.min(...totals);
-  const labels = ["Keep Volvo V90", "CR-V Sport Touring Hybrid", "RAV4 Hybrid XSE ⭐", "Crosstrek Hybrid"];
-  const winnerIdx = totals.indexOf(minTotal);
-  const allColors = [COLORS.volvo, COLORS.crv, COLORS.rav4h, COLORS.hybrid];
-  const winnerColor = allColors[winnerIdx];
-  const maxBar = Math.max(...totals);
+  const totalMiPerWk = commuteDays * commuteMiles + cityMilesPerWeek;
+  const totalMi = totalMiPerWk * wpy * years;
+  const avgGas = gasPrice * (1 + (gasInflation / 100) * (years - 1) / 2);
 
-  const rows = [
-    { label: "Net purchase (after $15k trade-in)",          v: c.netPurch.v, p: c.netPurch.c, r: c.netPurch.r, h: c.netPurch.h },
-    { label: `Fuel (avg gas $${c.avgGas.toFixed(2)}/gal)`, v: c.fuel.v,     p: c.fuel.c,     r: c.fuel.r,     h: c.fuel.h },
-    { label: "Insurance",                                   v: c.ins.v,      p: c.ins.c,      r: c.ins.r,      h: c.ins.h },
-    { label: "Maintenance",                                 v: c.maint.v,    p: c.maint.c,    r: c.maint.r,    h: c.maint.h },
-    { label: "Asset depreciation",                         v: c.dep.v,      p: c.dep.c,      r: c.dep.r,      h: c.dep.h },
-    { label: `Residual recovered (yr ${years})`,           v: -c.residual.v, p: -c.residual.c, r: -c.residual.r, h: -c.residual.h },
-    { label: `Opportunity cost of capital (${investReturn}%/yr)`, v: c.opp.v, p: c.opp.c, r: c.opp.r, h: c.opp.h, highlight: true },
+  const sorted = [...results].sort((a, b) => a.total - b.total);
+  const minTotal = sorted[0].total;
+  const maxTotal = sorted[sorted.length - 1].total;
+
+  // Financing calcs
+  const finVeh      = VEHICLES.find(v => v.id === selectedVehicle);
+  const finMSRP     = getV(selectedVehicle, "msrp");
+  const finNetOut   = Math.max(0, finMSRP - tradeIn);
+  const finTax      = finMSRP * SALES_TAX;
+  const finTotal    = finNetOut + finTax;
+  const monthlyPmt  = loanYears > 0 ? finTotal / (loanYears * 12) : 0;
+  const hysEarned   = calcHYSBenefit(finTotal, loanYears, hysRate);
+
+  const rowKeys = [
+    { label: `Net purchase (after ${fmt(tradeIn)} trade-in)`, key: "netOutlay" },
+    { label: "Sales tax (8.75%)", key: "salesTax" },
+    { label: `Fuel/charging (avg gas $${avgGas.toFixed(2)}/gal)`, key: "fuel" },
+    { label: "Insurance", key: "ins" },
+    { label: "Maintenance", key: "maint" },
+    { label: "Asset depreciation", key: "depCost" },
+    { label: `Residual recovered (yr ${years})`, key: "endVal", negative: true },
+    { label: `Opp. cost of capital (${investReturn}%/yr)${tucsonFinance ? " · Tucson = $0 (financed)" : ""}`, key: "opp", highlight: true },
   ];
 
   return (
-    <div style={{ fontFamily: "system-ui, sans-serif", maxWidth: 940, margin: "0 auto", padding: 16, fontSize: 13 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 2 }}>🚗 Car Cost-Benefit Model — 4 Scenarios</h2>
-      <p style={{ fontSize: 11, color: "#6b7280", marginBottom: 10 }}>
-        Net true cost = cash out minus residual value recovered. $15k trade-in · Cash purchase · No federal EV/PHEV credit in 2026 · ⭐ = recommended trim
+    <div style={{ fontFamily: "system-ui, sans-serif", maxWidth: 1100, margin: "0 auto", padding: 14, fontSize: 12 }}>
+      <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 2 }}>🚗 Car Cost-Benefit — 8 Scenarios</h2>
+      <p style={{ fontSize: 10.5, color: "#6b7280", marginBottom: 10 }}>
+        Net true cost · $15k trade-in · Cash purchase · 8.75% CA sales tax · No federal EV/PHEV credit in 2026 · ⭐ = recommended
       </p>
 
-      <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: 11, marginBottom: 14, fontSize: 11.5 }}>
-        <strong style={{ color: "#1e40af" }}>Driving pattern: </strong>
-        <span style={{ color: "#1e3a8a" }}>
-          {commuteDays}×/wk highway ({commuteMiles} mi/day) + {cityMilesPerWeek} mi/wk city
-          = <strong>{c.totalMiPerWk} mi/wk ({(c.totalMiPerWk * 52).toLocaleString()} mi/yr)</strong>
-        </span>
+      <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 11 }}>
+        <strong style={{ color: "#1e40af" }}>Pattern: </strong>
+        <span style={{ color: "#1e3a8a" }}>{commuteDays}×/wk highway ({commuteMiles} mi) + {cityMilesPerWeek} mi/wk city = <strong>{totalMiPerWk} mi/wk · {(totalMiPerWk * 52).toLocaleString()} mi/yr</strong></span>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 14 }}>
 
-        {/* LEFT — inputs */}
-        <div style={{ background: "#f9fafb", borderRadius: 12, padding: 14, border: "1px solid #e5e7eb", fontSize: 12 }}>
+        {/* LEFT */}
+        <div style={{ background: "#f9fafb", borderRadius: 10, padding: 12, border: "1px solid #e5e7eb" }}>
 
           <SH t="Driving Pattern" />
-          <Slider label="Highway commute days/week" value={commuteDays} min={1} max={5} step={1}
-            display={v => `${v} days`} onChange={setCommuteDays}
-            note={`${commuteDays}×${commuteMiles}mi = ${commuteDays * commuteMiles} mi/wk highway`} />
+          <Slider label="Commute days/wk" value={commuteDays} min={1} max={5} step={1}
+            display={v => `${v}d`} onChange={setCommuteDays} note={`${commuteDays}×${commuteMiles}mi highway`} />
           <Slider label="Miles per commute day" value={commuteMiles} min={50} max={150} step={5}
             display={v => `${v} mi`} onChange={setCommuteMiles} />
-          <Slider label="City miles / week (other days)" value={cityMilesPerWeek} min={0} max={150} step={5}
-            display={v => `${v} mi/wk`} onChange={setCityMilesPerWeek} />
+          <Slider label="City miles/wk (other days)" value={cityMilesPerWeek} min={0} max={150} step={5}
+            display={v => `${v} mi`} onChange={setCityMilesPerWeek} />
           <Slider label="Analysis period" value={years} min={1} max={5} step={1}
-            display={v => `${v} year${v > 1 ? "s" : ""}`} onChange={setYears} />
+            display={v => `${v} yr`} onChange={setYears} />
+
+          <SH t="Trade-In & Purchase" />
+          <Slider label="Trade-in value" value={tradeIn} min={0} max={25000} step={500}
+            display={v => fmt(v)} onChange={setTradeIn}
+            note="Current offer: $15,000. 8.75% sales tax applied to full MSRP for all new cars." />
 
           <SH t="CA Gas Price" />
           <Slider label="Current gas price" value={gasPrice} min={3.50} max={8.00} step={0.05}
-            display={v => `$${v.toFixed(2)}/gal`} onChange={setGasPrice}
-            note="CA avg $4.74. UC Davis projects +$1.21 by Aug 2026 from refinery closures." />
-          <Slider label="Annual gas price increase" value={gasInflation} min={0} max={50} step={1}
+            display={v => `$${v.toFixed(2)}`} onChange={setGasPrice}
+            note="CA avg $4.74 · refinery closures may push $6+" />
+          <Slider label="Annual increase" value={gasInflation} min={0} max={50} step={1}
             display={v => `${v}%/yr`} onChange={setGasInflation}
-            note="12% default reflects coming CA refinery closures." />
+            note="Default 12% reflects refinery closures" />
 
-          <SH t="Time Value of Money" />
-          <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: 9, marginBottom: 10, fontSize: 11, color: "#14532d" }}>
-            Opportunity cost = investment growth foregone by spending cash on a car. Applies to net purchase outlay only. Volvo = $0 outlay = $0 opportunity cost.
+          <SH t="Tucson Financing" />
+          <div style={{ background: tucsonFinance ? "#f0fdf4" : "#fefce8", border: `1px solid ${tucsonFinance ? "#bbf7d0" : "#fef08a"}`, borderRadius: 8, padding: 10, marginBottom: 4 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <input type="checkbox" checked={tucsonFinance} onChange={e => setTucsonFinance(e.target.checked)}
+                style={{ width: 15, height: 15, accentColor: "#0369a1" }} />
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: tucsonFinance ? "#166534" : "#713f12" }}>
+                {tucsonFinance ? "✓ Financing at 0% APR" : "Finance Tucson at 0% APR?"}
+              </span>
+            </label>
+            <div style={{ fontSize: 10.5, color: "#6b7280", marginTop: 5, lineHeight: 1.6 }}>
+              {tucsonFinance
+                ? "Opp. cost = $0 for both Tucsons — capital stays invested. See financing module below for HYS earnings."
+                : "When checked, opp. cost = $0 for Tucson models. Capital stays in HYS earning interest instead of leaving your portfolio."}
+            </div>
           </div>
-          <Slider label="Expected annual investment return" value={investReturn} min={1} max={15} step={0.5}
+
+          <SH t="Opportunity Cost of Capital" />
+          <Slider label="Expected investment return" value={investReturn} min={1} max={15} step={0.5}
             display={v => `${v}%/yr`} onChange={setInvestReturn}
-            note={`At ${investReturn}%, ~${fmt((42750 - 15000) * (Math.pow(1 + investReturn / 100, years) - 1))} foregone on ~$28k outlay over ${years} yr`} />
+            note="Foregone growth on net purchase outlay. Volvo = $0 outlay." />
 
-          <SH t="Vehicle Prices (Cash, −$15k Trade-In)" />
-          <Slider label="CR-V Sport Touring Hybrid (AWD)" value={crvPrice} min={40000} max={50000} step={250}
-            display={v => fmt(v)} onChange={setCrvPrice}
-            note="MSRP $42,250 + $1,450 dest = $43,700. AWD standard on Sport Touring." />
-          <Slider label="⭐ RAV4 Hybrid XSE (AWD)" value={rav4hPrice} min={38000} max={48000} step={250}
-            display={v => fmt(v)} onChange={setRav4hPrice}
-            note="XSE $42,750 incl. dest. Recommended trim by automotive press." />
-          <Slider label="Crosstrek Hybrid (Premium trim)" value={hybridPrice} min={36000} max={44000} step={250}
-            display={v => fmt(v)} onChange={setHybridPrice}
-            note="~$40k · Non-plug-in · 36 mpg · No charging needed" />
-
-          <SH t="Fuel Economy (Real-World)" />
-          <Slider label="CR-V Sport Touring hybrid MPG" value={crvMPG} min={28} max={42} step={1}
-            display={v => `${v} mpg`} onChange={setCrvMPG}
-            note="EPA 37 mpg combined AWD. Edmunds highway test: 33.3 mpg. Default 35 = conservative." />
-          <Slider label="RAV4 Hybrid XSE AWD MPG" value={rav4hMPG} min={34} max={47} step={1}
-            display={v => `${v} mpg`} onChange={setRav4hMPG}
-            note="EPA 41 mpg AWD combined. Real-world highway ~38–43." />
-
-          <SH t="Depreciation (%/yr)" />
-          <Slider label="Volvo V90" value={volvoDepRate} min={5} max={25} step={1}
-            display={v => `${v}%`} onChange={setVolvoDepRate} note="80k mi luxury wagon: ~10–14%/yr" />
-          <Slider label="CR-V Sport Touring Hybrid" value={crvDepRate} min={8} max={25} step={1}
-            display={v => `${v}%`} onChange={setCrvDepRate} note="Honda CR-V holds value well: ~12–16%/yr" />
-          <Slider label="RAV4 Hybrid XSE" value={rav4hDepRate} min={8} max={22} step={1}
-            display={v => `${v}%`} onChange={setRav4hDepRate} note="RAV4 Hybrid holds value very well: ~11–15%/yr" />
-          <Slider label="Crosstrek Hybrid" value={hybridDepRate} min={8} max={22} step={1}
-            display={v => `${v}%`} onChange={setHybridDepRate} note="~12–16%/yr" />
-
-          <SH t="Annual Insurance" />
-          <div style={{ background: "#fefce8", border: "1px solid #fef08a", borderRadius: 8, padding: 9, marginBottom: 10, fontSize: 11, color: "#713f12" }}>
-            Your Volvo quote: $600/6mo = $1,200/yr. New car rates are estimates — plug in actual quotes when you have them.
-          </div>
-          <Slider label="Volvo V90 (confirmed)" value={volvoInsurance} min={600} max={3000} step={50}
-            display={v => `${fmt(v)}/yr`} onChange={setVolvoInsurance} note="Your confirmed rate: $600/6mo = $1,200/yr" />
-          <Slider label="CR-V Sport Touring Hybrid" value={crvInsurance} min={600} max={3000} step={50}
-            display={v => `${fmt(v)}/yr`} onChange={setCrvInsurance} note="Hondas insure competitively. Est. ~15–25% more than Volvo." />
-          <Slider label="RAV4 Hybrid XSE ⭐" value={rav4hInsurance} min={600} max={3000} step={50}
-            display={v => `${fmt(v)}/yr`} onChange={setRav4hInsurance} note="RAV4 Hybrid insures cheaply. Est. ~10–20% more than Volvo." />
-          <Slider label="Crosstrek Hybrid Premium" value={hybridInsurance} min={600} max={3000} step={50}
-            display={v => `${fmt(v)}/yr`} onChange={setHybridInsurance} note="Subarus among cheapest to insure. Est. ~10–15% more than Volvo." />
-
-          <SH t="Annual Maintenance" />
-          <Slider label="Volvo V90 (80k mi)" value={volvoMaint} min={600} max={4500} step={100}
-            display={v => `${fmt(v)}/yr`} onChange={setVolvoMaint}
-            note="Try $2,500–3,500 to stress-test surprise repair risk." warn={volvoMaint < 1000} />
-          <Slider label="CR-V Sport Touring Hybrid" value={crvMaint} min={300} max={1500} step={50}
-            display={v => `${fmt(v)}/yr`} onChange={setCrvMaint} note="Honda hybrid reliability: ~$500–900/yr" />
-          <Slider label="RAV4 Hybrid XSE" value={rav4hMaint} min={300} max={1500} step={50}
-            display={v => `${fmt(v)}/yr`} onChange={setRav4hMaint} note="Toyota hybrid reliability: ~$500–850/yr" />
-          <Slider label="Crosstrek Hybrid" value={hybridMaint} min={400} max={1800} step={50}
-            display={v => `${fmt(v)}/yr`} onChange={setHybridMaint} note="~$600–1,000/yr" />
+          <SH t="Per-Vehicle Overrides" />
+          <div style={{ fontSize: 10.5, color: "#6b7280", marginBottom: 8 }}>Fine-tune any vehicle's price, MPG, depreciation, insurance, or maintenance.</div>
+          {VEHICLES.map(veh => (
+            <details key={veh.id} style={{ marginBottom: 5 }}>
+              <summary style={{ fontSize: 11, fontWeight: 600, color: veh.color, cursor: "pointer" }}>{veh.label}</summary>
+              <div style={{ paddingLeft: 8, paddingTop: 4 }}>
+                {veh.id !== "volvo" && (
+                  <Slider label="Price (incl. dest.)" value={getV(veh.id, "msrp")} min={30000} max={65000} step={250}
+                    display={v => fmt(v)} onChange={v => setV(veh.id, "msrp", v)} />
+                )}
+                {veh.id !== "tesla" && veh.id !== "volvo" && (
+                  <Slider label="MPG" value={getV(veh.id, "mpg")} min={20} max={60} step={1}
+                    display={v => `${v} mpg`} onChange={v => setV(veh.id, "mpg", v)} />
+                )}
+                <Slider label="Depreciation %/yr" value={getV(veh.id, "dep")} min={5} max={30} step={1}
+                  display={v => `${v}%`} onChange={v => setV(veh.id, "dep", v)} />
+                <Slider label="Insurance $/yr" value={getV(veh.id, "ins")} min={600} max={3500} step={50}
+                  display={v => fmt(v)} onChange={v => setV(veh.id, "ins", v)} />
+                <Slider label="Maintenance $/yr" value={getV(veh.id, "maint")} min={300} max={4500} step={50}
+                  display={v => fmt(v)} onChange={v => setV(veh.id, "maint", v)}
+                  warn={veh.id === "volvo" && getV("volvo", "maint") < 1000}
+                  note={veh.id === "volvo" ? "Try $2,500+ to stress-test repair risk" : ""} />
+              </div>
+            </details>
+          ))}
         </div>
 
-        {/* RIGHT — results */}
+        {/* RIGHT */}
         <div>
-          {/* Winner banner */}
-          <div style={{ background: winnerColor, borderRadius: 12, padding: 14, marginBottom: 12, color: "white" }}>
-            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, opacity: 0.8 }}>Lowest net cost over {years} year{years > 1 ? "s" : ""}</div>
-            <div style={{ fontSize: 24, fontWeight: 800, marginTop: 2 }}>{labels[winnerIdx]}</div>
-            <div style={{ fontSize: 12.5, opacity: 0.85 }}>{fmt(minTotal)} total · {fmtMi(minTotal / c.totalMi)}</div>
+          {/* Ranked cards — top 4 */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 8 }}>
+            {sorted.slice(0, 4).map((r, rank) => (
+              <div key={r.id} style={{ background: rank === 0 ? r.color : "white", borderRadius: 10, padding: 10, border: `2px solid ${r.color}` }}>
+                {rank === 0 && <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: 1, color: "rgba(255,255,255,0.8)" }}>Best Value</div>}
+                <div style={{ fontSize: 11, fontWeight: 700, color: rank === 0 ? "white" : r.color, lineHeight: 1.3, marginBottom: 3 }}>{r.label}</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: rank === 0 ? "white" : r.color }}>{fmt(r.total)}</div>
+                <div style={{ fontSize: 9.5, color: rank === 0 ? "rgba(255,255,255,0.75)" : "#6b7280", marginTop: 2 }}>{fmtMi(r.total / totalMi)}/mi</div>
+                {r.isFinanced && <div style={{ fontSize: 9, background: "#bbf7d0", color: "#166534", borderRadius: 3, padding: "1px 4px", marginTop: 3, display:"inline-block" }}>0% financed</div>}
+                <div style={{ fontSize: 9, color: rank === 0 ? "rgba(255,255,255,0.65)" : "#9ca3af", marginTop: 3, lineHeight: 1.4 }}>{r.note}</div>
+                {rank > 0 && <div style={{ fontSize: 9.5, color: "#6b7280", marginTop: 4 }}>#{rank + 1} · +{fmt(r.total - minTotal)}</div>}
+              </div>
+            ))}
+          </div>
+          {/* Bottom 4 */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 12 }}>
+            {sorted.slice(4).map((r, i) => (
+              <div key={r.id} style={{ background: "white", borderRadius: 10, padding: 10, border: `2px solid ${r.color}` }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: r.color, lineHeight: 1.3, marginBottom: 3 }}>{r.label}</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: r.color }}>{fmt(r.total)}</div>
+                <div style={{ fontSize: 9.5, color: "#6b7280", marginTop: 2 }}>{fmtMi(r.total / totalMi)}/mi</div>
+                {r.isFinanced && <div style={{ fontSize: 9, background: "#bbf7d0", color: "#166534", borderRadius: 3, padding: "1px 4px", marginTop: 3, display:"inline-block" }}>0% financed</div>}
+                <div style={{ fontSize: 9, color: "#9ca3af", marginTop: 3, lineHeight: 1.4 }}>{r.note}</div>
+                <div style={{ fontSize: 9.5, color: "#6b7280", marginTop: 4 }}>#{i + 5} · +{fmt(r.total - minTotal)}</div>
+              </div>
+            ))}
           </div>
 
           {/* Bar chart */}
-          <div style={{ background: "white", borderRadius: 12, padding: 14, border: "1px solid #e5e7eb", marginBottom: 12 }}>
-            <div style={{ fontWeight: 700, fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Total Net Cost Comparison</div>
-            <Bar label="Keep Volvo V90" value={c.total.v} max={maxBar} color={COLORS.volvo} />
-            <Bar label="CR-V Sport Touring Hybrid" sub="37 mpg EPA · AWD standard" value={c.total.c} max={maxBar} color={COLORS.crv} />
-            <Bar label="RAV4 Hybrid XSE ⭐" sub="41 mpg EPA · recommended" value={c.total.r} max={maxBar} color={COLORS.rav4h} />
-            <Bar label="Crosstrek Hybrid Premium" sub="36 mpg · non-plug-in" value={c.total.h} max={maxBar} color={COLORS.hybrid} />
+          <div style={{ background: "white", borderRadius: 10, padding: 12, border: "1px solid #e5e7eb", marginBottom: 12 }}>
+            <div style={{ fontWeight: 700, fontSize: 10.5, color: "#6b7280", textTransform: "uppercase", marginBottom: 10 }}>Total Net Cost</div>
+            {sorted.map(r => (
+              <Bar key={r.id} label={r.label} sub={r.isFinanced ? "0% financed" : undefined}
+                value={r.total} max={maxTotal} color={r.color} />
+            ))}
           </div>
 
           {/* Breakdown table */}
-          <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", overflow: "hidden", marginBottom: 12 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <div style={{ background: "white", borderRadius: 10, border: "1px solid #e5e7eb", overflow: "auto", marginBottom: 12 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 800 }}>
               <thead>
                 <tr style={{ background: "#f9fafb" }}>
-                  <th style={{ padding: "7px 8px", fontSize: 11, textAlign: "left", color: "#6b7280", borderBottom: "1px solid #e5e7eb" }}>Component</th>
-                  {["Volvo", "CR-V HV", "RAV4 HV", "Crosstrek"].map((h, i) => (
-                    <th key={h} style={{ padding: "7px 8px", fontSize: 11, textAlign: "right", color: allColors[i], borderBottom: "1px solid #e5e7eb", fontWeight: 700 }}>{h}</th>
+                  <th style={{ padding: "6px 8px", fontSize: 10, textAlign: "left", color: "#6b7280", borderBottom: "1px solid #e5e7eb" }}>Component</th>
+                  {VEHICLES.map(v => (
+                    <th key={v.id} style={{ padding: "6px 5px", fontSize: 9.5, textAlign: "right", color: v.color, borderBottom: "1px solid #e5e7eb", fontWeight: 700, whiteSpace: "nowrap" }}>
+                      {v.label.replace("Sport Touring", "ST").replace("Hybrid", "HV").replace("Premium", "Prem").replace("Limited", "Ltd").replace("Model 3 Prem RWD", "M3 RWD")}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r, ri) => (
-                  <tr key={ri} style={{ background: r.highlight ? "#fefce8" : ri % 2 === 0 ? "white" : "#fafafa" }}>
-                    <td style={{ padding: "5px 8px", fontSize: 11, color: r.highlight ? "#854d0e" : "#374151", fontStyle: r.highlight ? "italic" : "normal", borderBottom: "1px solid #f3f4f6" }}>{r.label}</td>
-                    {[r.v, r.p, r.r, r.h].map((v, i) => (
-                      <td key={i} style={{ padding: "5px 8px", fontSize: 11, textAlign: "right", borderBottom: "1px solid #f3f4f6", color: r.highlight && v > 0 ? "#b45309" : "#374151" }}>{fmt(v)}</td>
-                    ))}
+                {rowKeys.map((row, ri) => (
+                  <tr key={ri} style={{ background: row.highlight ? "#fefce8" : ri % 2 === 0 ? "white" : "#fafafa" }}>
+                    <td style={{ padding: "4px 8px", fontSize: 10, color: row.highlight ? "#854d0e" : "#374151", fontStyle: row.highlight ? "italic" : "normal", borderBottom: "1px solid #f3f4f6", whiteSpace: "nowrap" }}>{row.label}</td>
+                    {results.map(r => {
+                      const val = row.negative ? -r[row.key] : r[row.key];
+                      return (
+                        <td key={r.id} style={{ padding: "4px 5px", fontSize: 10, textAlign: "right", borderBottom: "1px solid #f3f4f6", color: row.highlight && val > 0 ? "#b45309" : row.highlight && val === 0 && r.isFinanced ? "#166534" : "#374151" }}>
+                          {fmt(val)}{row.highlight && val === 0 && r.isFinanced ? " ✓" : ""}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
                 <tr style={{ background: "#f0f9ff" }}>
-                  <td style={{ padding: "7px 8px", fontSize: 12, fontWeight: 800, borderTop: "2px solid #e5e7eb" }}>NET TOTAL</td>
-                  {[c.total.v, c.total.c, c.total.r, c.total.h].map((v, i) => (
-                    <td key={i} style={{ padding: "7px 8px", fontSize: 12, fontWeight: 800, textAlign: "right", borderTop: "2px solid #e5e7eb", color: allColors[i], background: v === minTotal ? "#d1fae5" : undefined }}>
-                      {fmt(v)}{v === minTotal ? " ✓" : ""}
+                  <td style={{ padding: "6px 8px", fontSize: 11, fontWeight: 800, borderTop: "2px solid #e5e7eb" }}>NET TOTAL</td>
+                  {results.map(r => (
+                    <td key={r.id} style={{ padding: "6px 5px", fontSize: 11, fontWeight: 800, textAlign: "right", borderTop: "2px solid #e5e7eb", color: r.color, background: r.total === minTotal ? "#d1fae5" : undefined }}>
+                      {fmt(r.total)}{r.total === minTotal ? " ✓" : ""}
                     </td>
                   ))}
                 </tr>
@@ -320,75 +362,121 @@ export default function App() {
             </table>
           </div>
 
-          {/* Cost per mile */}
-          <div style={{ background: "#fefce8", borderRadius: 12, padding: 12, border: "1px solid #fef08a", marginBottom: 12 }}>
-            <div style={{ fontWeight: 700, fontSize: 11, color: "#854d0e", textTransform: "uppercase", marginBottom: 7 }}>True Cost Per Mile ({c.totalMi.toLocaleString()} mi total)</div>
-            {[
-              { label: "Keep Volvo V90",              v: c.total.v, color: COLORS.volvo },
-              { label: "CR-V Sport Touring Hybrid",   v: c.total.c, color: COLORS.crv },
-              { label: "RAV4 Hybrid XSE ⭐",          v: c.total.r, color: COLORS.rav4h },
-              { label: "Crosstrek Hybrid Premium",    v: c.total.h, color: COLORS.hybrid },
-            ].map(x => (
-              <div key={x.label} style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ color: x.color, fontWeight: 600, fontSize: 12 }}>{x.label}</span>
-                <span style={{ color: x.color, fontWeight: 700, fontSize: 12 }}>{fmtMi(x.v / c.totalMi)}</span>
+          {/* Financing Module */}
+          <div style={{ background: "white", borderRadius: 10, border: `2px solid ${tucsonFinance ? "#166534" : "#0369a1"}`, overflow: "hidden", marginBottom: 12 }}>
+            <div style={{ background: tucsonFinance ? "#166534" : "#0369a1", padding: "10px 14px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+              onClick={() => setShowFinancing(f => !f)}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 13, color: "white" }}>
+                  💰 0% APR Financing Module — Tucson Only
+                  {tucsonFinance && <span style={{ fontSize: 10, background: "rgba(255,255,255,0.2)", borderRadius: 4, padding: "2px 6px", marginLeft: 8 }}>ACTIVE</span>}
+                </div>
+                <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.8)" }}>
+                  {tucsonFinance ? "Opp. cost zeroed in main model · HYS earnings calculated below" : "Enable the toggle above to zero out opp. cost in the main model"}
+                </div>
               </div>
-            ))}
-          </div>
+              <div style={{ color: "white", fontSize: 16 }}>{showFinancing ? "▲" : "▼"}</div>
+            </div>
 
-          {/* Fuel savings */}
-          <div style={{ background: "#f0fdf4", borderRadius: 12, padding: 12, border: "1px solid #bbf7d0", marginBottom: 12 }}>
-            <div style={{ fontWeight: 700, fontSize: 11, color: "#166534", textTransform: "uppercase", marginBottom: 7 }}>Fuel Savings vs. Keeping Volvo</div>
-            {[
-              { label: "CR-V Sport Touring Hybrid",   v: c.fuelSavings.c },
-              { label: "RAV4 Hybrid XSE",             v: c.fuelSavings.r },
-              { label: "Crosstrek Hybrid Premium",    v: c.fuelSavings.h },
-            ].map(x => (
-              <div key={x.label} style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontSize: 12 }}>{x.label}</span>
-                <span style={{ fontWeight: 700, color: x.v > 0 ? "#16a34a" : "#dc2626", fontSize: 12 }}>{fmt(x.v)}</span>
+            {showFinancing && (
+              <div style={{ padding: 14 }}>
+                <div style={{ background: "#eff6ff", borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 11, color: "#1e3a8a", lineHeight: 1.7 }}>
+                  <strong>How this works:</strong> Instead of paying cash, you finance at 0% APR and place the full purchase outlay (net price + 8.75% tax) in a HYS account. Each month the balance earns interest, then you make your car payment from the account. The remaining balance after the final payment is pure interest earned — your reward for using the dealer's free money.
+                  <br/><strong>Equivalent discount:</strong> The upfront cash discount that would give the same benefit. If a dealer offers more than this for cash payment, take the cash deal instead.
+                  {tucsonFinance && <><br/><strong style={{ color: "#166534" }}>⚠️ Note:</strong> With financing active, the HYS rate ({hysRate}%) is lower than your investment return ({investReturn}%). You're earning {hysRate}% instead of {investReturn}% on that capital during the loan period — a difference of {(investReturn - hysRate).toFixed(1)}%/yr. This gap is already reflected by setting opp. cost to $0 in the main model (no opp. cost charge) rather than applying the full investment return.</>}
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "#374151", marginBottom: 6 }}>Tucson Model</div>
+                    {VEHICLES.filter(v => TUCSON_IDS.includes(v.id)).map(v => (
+                      <label key={v.id} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5, cursor: "pointer" }}>
+                        <input type="radio" name="finVeh" value={v.id} checked={selectedVehicle === v.id} onChange={() => setSelectedVehicle(v.id)} />
+                        <span style={{ fontSize: 11, color: v.color, fontWeight: selectedVehicle === v.id ? 700 : 400 }}>{v.label}</span>
+                      </label>
+                    ))}
+                    <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 8, lineHeight: 1.7 }}>
+                      MSRP: {fmt(finMSRP)}<br />
+                      Trade-in: −{fmt(tradeIn)}<br />
+                      Tax (8.75%): +{fmt(Math.round(finTax))}<br />
+                      <strong>Total into HYS: {fmt(Math.round(finTotal))}</strong>
+                    </div>
+                  </div>
+                  <div>
+                    <Slider label="Loan term" value={loanYears} min={3} max={5} step={1}
+                      display={v => `${v} years`} onChange={setLoanYears}
+                      note={`${loanYears * 12} payments of ${fmt(Math.round(monthlyPmt))}/mo`} />
+                    <Slider label="HYS annual rate" value={hysRate} min={2} max={8} step={0.1}
+                      display={v => `${v.toFixed(1)}%`} onChange={setHysRate}
+                      note="Current top HYS rates: ~4.5–5.0% (check Bankrate)" />
+                  </div>
+                  <div style={{ background: "#f0fdf4", borderRadius: 8, padding: 12, border: "1px solid #bbf7d0" }}>
+                    <div style={{ fontSize: 10.5, color: "#166534", fontWeight: 700, textTransform: "uppercase", marginBottom: 8 }}>Results</div>
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 10, color: "#6b7280" }}>Total outlay into HYS (incl. tax)</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: "#0369a1" }}>{fmt(Math.round(finTotal))}</div>
+                    </div>
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 10, color: "#6b7280" }}>Monthly payment (0% APR)</div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{fmt(Math.round(monthlyPmt))}/mo</div>
+                    </div>
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 10, color: "#6b7280" }}>HYS balance after all {loanYears * 12} payments</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#15803d" }}>{fmt(Math.round(hysEarned))}</div>
+                    </div>
+                    <div style={{ borderTop: "1px solid #bbf7d0", paddingTop: 8 }}>
+                      <div style={{ fontSize: 10.5, color: "#166534", fontWeight: 600 }}>💡 Equivalent upfront discount</div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: "#15803d" }}>{fmt(Math.round(hysEarned))}</div>
+                      <div style={{ fontSize: 10, color: "#6b7280", marginTop: 2, lineHeight: 1.5 }}>
+                        A cash discount of {fmt(Math.round(hysEarned))} = the interest earned keeping {fmt(Math.round(finTotal))} in HYS over the full {loanYears}-yr loan at {hysRate}%. If a dealer offers more than this for cash, take the cash deal.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* HYS chart */}
+                <div style={{ background: "#f9fafb", borderRadius: 8, padding: 10, border: "1px solid #e5e7eb" }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "#374151", marginBottom: 8 }}>HYS Balance Over Loan Term ({loanYears} yr · {loanYears * 12} payments)</div>
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: 1, height: 60 }}>
+                    {(() => {
+                      const nMonths = loanYears * 12;
+                      const mRate = hysRate / 100 / 12;
+                      const pmt = finTotal / nMonths;
+                      let bal = finTotal;
+                      const balances = [bal];
+                      for (let m = 1; m <= nMonths; m++) {
+                        bal *= (1 + mRate);
+                        bal -= pmt;
+                        balances.push(Math.max(0, bal));
+                      }
+                      const maxBal = balances[0];
+                      return balances.map((b, i) => (
+                        <div key={i} title={`Mo ${i}: ${fmt(Math.round(b))}`} style={{
+                          flex: 1, background: "#0369a1", borderRadius: "1px 1px 0 0",
+                          height: `${Math.max(2, (b / maxBal) * 100)}%`,
+                          opacity: 0.35 + (1 - i / balances.length) * 0.65,
+                        }} />
+                      ));
+                    })()}
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, color: "#9ca3af", marginTop: 3 }}>
+                    <span>Mo 0: {fmt(Math.round(finTotal))} into HYS</span>
+                    <span style={{ color: "#0369a1", fontWeight: 600 }}>After last payment: {fmt(Math.round(hysEarned))} earned</span>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 10, fontSize: 10.5, color: "#6b7280", lineHeight: 1.7 }}>
+                  <strong>Caveats:</strong> Assumes 0% APR is genuinely available — dealers sometimes offer cash-back vs. 0% APR, always compare. HYS rates change; the equivalent discount shrinks if rates fall. Sales tax is included in the outlay since it also leaves your account at purchase.
+                </div>
               </div>
-            ))}
-            <div style={{ fontSize: 10.5, color: "#6b7280", marginTop: 5 }}>Avg gas ${c.avgGas.toFixed(2)}/gal over period · All three are non-plug-in hybrids</div>
+            )}
           </div>
 
-          {/* RAV4 recommendation box */}
-          <div style={{ background: "#eff6ff", borderRadius: 12, padding: 12, border: "1px solid #bfdbfe", marginBottom: 12 }}>
-            <div style={{ fontWeight: 700, fontSize: 11, color: "#1e40af", textTransform: "uppercase", marginBottom: 6 }}>⭐ Why RAV4 Hybrid XSE is Recommended</div>
-            <ul style={{ margin: 0, paddingLeft: 15, fontSize: 11.5, color: "#1e3a8a", lineHeight: 1.8 }}>
-              <li>Best value trim per automotive press — 12.9" screen, AWD, heated+ventilated seats, moonroof.</li>
-              <li>41 mpg EPA AWD — meaningfully better than the CR-V's 37 mpg, especially on your highway-heavy commute.</li>
-              <li>RAV4 holds resale value exceptionally well vs. class.</li>
-              <li>~$950 cheaper than the CR-V Sport Touring at default prices.</li>
-            </ul>
-          </div>
-
-          {/* CR-V note */}
-          <div style={{ background: "#fff1f2", borderRadius: 12, padding: 12, border: "1px solid #fecdd3", marginBottom: 12 }}>
-            <div style={{ fontWeight: 700, fontSize: 11, color: "#9f1239", textTransform: "uppercase", marginBottom: 6 }}>CR-V Sport Touring — What You're Paying For</div>
-            <ul style={{ margin: 0, paddingLeft: 15, fontSize: 11.5, color: "#881337", lineHeight: 1.8 }}>
-              <li>Nicer interior quality and more cargo space than the RAV4 at this trim level.</li>
-              <li>37 mpg EPA combined AWD, but Edmunds' highway-biased real-world test returned only 33.3 mpg — relevant for your commute.</li>
-              <li>Sport Touring is the top trim; Edmunds suggests the Sport-L has most of the same features for ~$4k less if budget matters.</li>
-            </ul>
-          </div>
-
-          {/* Key risks */}
-          <div style={{ background: "#f5f3ff", borderRadius: 12, padding: 12, border: "1px solid #e9d5ff" }}>
-            <div style={{ fontWeight: 700, fontSize: 11, color: "#5b21b6", textTransform: "uppercase", marginBottom: 6 }}>Key Risk Factors</div>
-            <ul style={{ margin: 0, paddingLeft: 15, fontSize: 11.5, color: "#4c1d95", lineHeight: 1.8 }}>
-              <li><strong>Opportunity cost at 8–10%</strong> adds $4–6k per new car over 2 years and compounds harder at 4–5 years — the strongest argument for keeping the Volvo short-term.</li>
-              <li><strong>CA gas spike:</strong> UC Davis projects +$1.21/gal by Aug 2026 from refinery closures. Drag gas inflation to 20–25% to see the impact.</li>
-              <li><strong>Volvo at 80k miles:</strong> Slide maintenance to $2,500–3,500 to model one surprise repair. That single event often flips the 2-year comparison.</li>
-              <li><strong>CR-V highway MPG:</strong> Try dragging the CR-V MPG slider to 33 (Edmunds tested) to see the worst-case fuel cost vs. the RAV4.</li>
-              <li><strong>Insurance estimates</strong> are placeholders — get actual quotes for all three vehicles before deciding.</li>
-            </ul>
+          {/* Footer notes */}
+          <div style={{ background: "#fff7ed", borderRadius: 8, padding: 10, border: "1px solid #fed7aa", fontSize: 10, color: "#7c2d12" }}>
+            <strong>Notes:</strong> Volvo 24 mpg · Tesla: {L2_LABEL}, 4.1 mi/kWh · Tucson PHEV: 32mi EV range, {L2_LABEL} · Tucson HV Limited: EPA 36 mpg AWD, real-world hwy ~32–33 mpg · 8.75% CA sales tax on all new cars · Opp. cost = total purchase × ((1+r)^n − 1); zeroed for Tucsons when financing toggled · Dep: declining-balance from MSRP · Trade-in applied before tax.
           </div>
         </div>
-      </div>
-
-      <div style={{ background: "#fff7ed", borderRadius: 12, padding: 12, border: "1px solid #fed7aa", marginTop: 14, fontSize: 11, color: "#7c2d12" }}>
-        <strong>Model notes:</strong> Volvo 24 mpg · Crosstrek Hybrid 36 mpg · RAV4 Hybrid XSE 41 mpg EPA AWD · CR-V Sport Touring 37 mpg EPA AWD (Edmunds real-world: 33.3 mpg highway) · All three new cars are non-plug-in hybrids · Depreciation: declining-balance · $15k trade-in applied at purchase · Cash deal · Opportunity cost = net outlay × ((1+r)^n − 1).
       </div>
     </div>
   );
