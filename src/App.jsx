@@ -16,7 +16,7 @@ const VEHICLES = [
   { id:"crosstrek", label:"Crosstrek Hybrid Prem",   color:"#166534", msrp:40000,  mpg:36,        dep:14, ins:1400, maint:800,  note:"Non-plug-in · 36 mpg" },
   { id:"tucsonhv",  label:"Tucson Hybrid Limited",   color:"#0e7490", msrp:43425,  mpg:33,        dep:14, ins:1550, maint:780,  note:"EPA 36 mpg AWD · real-world hwy ~32–33 mpg · AWD std" },
   { id:"tucson",    label:"Tucson Limited PHEV",      color:"#7c3aed", msrp:50150,  mpg:35,        dep:15, ins:1600, maint:800,  note:`⚠️ $50k+ · 32mi EV (${L2_LABEL}) · 35 mpg hybrid`, evRange:32 },
-  { id:"niro",      label:"Kia Niro SX Touring",      color:"#c2410c", msrp:37285,  mpg:49,        dep:13, ins:1350, maint:700,  note:"49 mpg · FWD only (no AWD) · $37,285 incl dest" },
+  { id:"niro",      label:"Sportage Hybrid SX Prestige", color:"#c2410c", msrp:42035,  mpg:35,        dep:13, ins:1400, maint:720,  note:"35 mpg AWD · 232hp · $42,035 incl dest · real-world ~34.8 mpg" },
   { id:"tesla",     label:"Tesla Model 3 Prem RWD",  color:"#0f766e", msrp:44130,  mpg:0,         dep:18, ins:2200, maint:550,  note:`363 mi range · 4.1 mi/kWh · ${L2_LABEL}`, evRange:999 },
 ];
 
@@ -71,7 +71,7 @@ function Bar({ label, sub, value, max, color }) {
 
 export default function App() {
   // Driving
-  const [years, setYears] = useState(2);
+  const [years, setYears] = useState(3);
   const [commuteDays, setCommuteDays] = useState(3);
   const [commuteMiles, setCommuteMiles] = useState(100);
   const [cityMilesPerWeek, setCityMilesPerWeek] = useState(50);
@@ -81,8 +81,8 @@ export default function App() {
   const [gasInflation, setGasInflation] = useState(12);
 
   // Financial
-  const [tradeIn, setTradeIn] = useState(15000);
-  const [investReturn, setInvestReturn] = useState(8);
+  const [tradeIn, setTradeIn] = useState(16500);
+  const [investReturn, setInvestReturn] = useState(5);
   const [tucsonFinance, setTucsonFinance] = useState(false);
 
   // Per-vehicle overrides
@@ -200,7 +200,7 @@ export default function App() {
     <div style={{ fontFamily: "system-ui, sans-serif", maxWidth: 1100, margin: "0 auto", padding: 14, fontSize: 12 }}>
       <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 2 }}>🚗 Car Cost-Benefit — 8 Scenarios</h2>
       <p style={{ fontSize: 10.5, color: "#6b7280", marginBottom: 10 }}>
-        Net true cost · $15k trade-in · Cash purchase · 8.75% CA sales tax · No federal EV/PHEV credit in 2026 · ⭐ = recommended
+        Net true cost · 8.75% CA sales tax · No federal EV/PHEV credit in 2026 · ⭐ = recommended
       </p>
 
       <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 11 }}>
@@ -474,7 +474,7 @@ export default function App() {
 
           {/* Footer notes */}
           <div style={{ background: "#fff7ed", borderRadius: 8, padding: 10, border: "1px solid #fed7aa", fontSize: 10, color: "#7c2d12" }}>
-            <strong>Notes:</strong> Volvo 24 mpg · Tesla: {L2_LABEL}, 4.1 mi/kWh · Tucson PHEV: 32mi EV range, {L2_LABEL} · Tucson HV Limited: EPA 36 mpg AWD, real-world hwy ~32–33 mpg · 8.75% CA sales tax on all new cars · Opp. cost = total purchase × ((1+r)^n − 1); zeroed for Tucsons when financing toggled · Dep: declining-balance from MSRP · Trade-in applied before tax.
+            <strong>Notes:</strong> Volvo 24 mpg · Tesla: {L2_LABEL}, 4.1 mi/kWh · Tucson PHEV: 32mi EV range, {L2_LABEL} · Tucson HV Limited: EPA 36 mpg AWD, real-world hwy ~32–33 mpg · Sportage Hybrid SX Prestige: EPA 35 mpg AWD, real-world ~34.8 mpg · 8.75% CA sales tax on all new cars · Opp. cost = total purchase × ((1+r)^n − 1); zeroed for Tucsons when financing toggled · Dep: declining-balance from MSRP · Trade-in applied before tax.
           </div>
         </div>
       </div>
