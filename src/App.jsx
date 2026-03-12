@@ -7,7 +7,7 @@ const VOLVO_MPG = 24;
 const HOME_ELEC = 0.35, TESLA_EFF = 4.1, PHEV_EFF = 3.4;
 const L2_LABEL = "$0.35/kWh apartment L2 charger";
 const SALES_TAX = 0.0875;
-const TUCSON_IDS = ["tucsonhv", "tucson"];
+const TUCSON_KIA_IDS = ["tucsonhv", "tucson", "niro"];
 
 const VEHICLES = [
   { id:"volvo",     label:"Keep Volvo V90",          color:"#6d28d9", msrp:0,      mpg:VOLVO_MPG, dep:11, ins:1200, maint:1400, note:"80k mi · confirmed $1,200/yr ins" },
@@ -111,7 +111,7 @@ export default function App() {
       const ins   = getV(veh.id, "ins");
       const maint = getV(veh.id, "maint");
       const evRange = veh.evRange || 0;
-      const isTucson = TUCSON_IDS.includes(veh.id);
+      const isTucson = TUCSON_KIA_IDS.includes(veh.id);
       const isFinanced = isTucson && tucsonFinance;
 
       // FUEL
@@ -197,7 +197,7 @@ export default function App() {
   ];
 
   return (
-    <div style={{ fontFamily: "system-ui, sans-serif", maxWidth: 1100, margin: "0 auto", padding: 14, fontSize: 12 }}>
+    <div style={{ fontFamily: "system-ui, sans-serif", maxWidth: 1100, margin: "0 auto", padding: 14, fontSize: 12, colorScheme: "light", background: "#ffffff", color: "#111827" }}>
       <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 2 }}>🚗 Car Cost-Benefit — 8 Scenarios</h2>
       <p style={{ fontSize: 10.5, color: "#6b7280", marginBottom: 10 }}>
         Net true cost · 8.75% CA sales tax · No federal EV/PHEV credit in 2026 · ⭐ = recommended
@@ -236,19 +236,19 @@ export default function App() {
             display={v => `${v}%/yr`} onChange={setGasInflation}
             note="Default 12% reflects refinery closures" />
 
-          <SH t="Tucson Financing" />
+          <SH t="Hyundai / Kia Financing" />
           <div style={{ background: tucsonFinance ? "#f0fdf4" : "#fefce8", border: `1px solid ${tucsonFinance ? "#bbf7d0" : "#fef08a"}`, borderRadius: 8, padding: 10, marginBottom: 4 }}>
             <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
               <input type="checkbox" checked={tucsonFinance} onChange={e => setTucsonFinance(e.target.checked)}
                 style={{ width: 15, height: 15, accentColor: "#0369a1" }} />
               <span style={{ fontSize: 11.5, fontWeight: 600, color: tucsonFinance ? "#166534" : "#713f12" }}>
-                {tucsonFinance ? "✓ Financing at 0% APR" : "Finance Tucson at 0% APR?"}
+                {tucsonFinance ? "✓ Financing at 0% APR (Hyundai/Kia)" : "Finance Hyundai/Kia at 0% APR?"}
               </span>
             </label>
             <div style={{ fontSize: 10.5, color: "#6b7280", marginTop: 5, lineHeight: 1.6 }}>
               {tucsonFinance
-                ? "Opp. cost = $0 for both Tucsons — capital stays invested. See financing module below for HYS earnings."
-                : "When checked, opp. cost = $0 for Tucson models. Capital stays in HYS earning interest instead of leaving your portfolio."}
+                ? "Opp. cost = $0 for Tucson HV, Tucson PHEV, and Sportage — capital stays invested. See financing module below."
+                : "When checked, opp. cost = $0 for Tucson HV, Tucson PHEV, and Sportage models."}
             </div>
           </div>
 
@@ -368,11 +368,11 @@ export default function App() {
               onClick={() => setShowFinancing(f => !f)}>
               <div>
                 <div style={{ fontWeight: 800, fontSize: 13, color: "white" }}>
-                  💰 0% APR Financing Module — Tucson Only
+                  💰 0% APR Financing Module — Hyundai / Kia Models
                   {tucsonFinance && <span style={{ fontSize: 10, background: "rgba(255,255,255,0.2)", borderRadius: 4, padding: "2px 6px", marginLeft: 8 }}>ACTIVE</span>}
                 </div>
                 <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.8)" }}>
-                  {tucsonFinance ? "Opp. cost zeroed in main model · HYS earnings calculated below" : "Enable the toggle above to zero out opp. cost in the main model"}
+                  {tucsonFinance ? "Opp. cost zeroed for Tucson HV, Tucson PHEV & Sportage · HYS earnings below" : "Enable toggle above to zero out opp. cost for Hyundai/Kia models"}
                 </div>
               </div>
               <div style={{ color: "white", fontSize: 16 }}>{showFinancing ? "▲" : "▼"}</div>
@@ -389,7 +389,7 @@ export default function App() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
                   <div>
                     <div style={{ fontSize: 11, fontWeight: 600, color: "#374151", marginBottom: 6 }}>Tucson Model</div>
-                    {VEHICLES.filter(v => TUCSON_IDS.includes(v.id)).map(v => (
+                    {VEHICLES.filter(v => TUCSON_KIA_IDS.includes(v.id)).map(v => (
                       <label key={v.id} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5, cursor: "pointer" }}>
                         <input type="radio" name="finVeh" value={v.id} checked={selectedVehicle === v.id} onChange={() => setSelectedVehicle(v.id)} />
                         <span style={{ fontSize: 11, color: v.color, fontWeight: selectedVehicle === v.id ? 700 : 400 }}>{v.label}</span>
