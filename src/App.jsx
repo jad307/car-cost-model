@@ -24,7 +24,9 @@ const VEHICLES = [
   { id:"tucsonhv",  label:"Tucson Hybrid Limited",   color:"#0e7490", msrp:43425,  mpg:33,        dep:14, ins:1550, maint:780,  note:"EPA 36 mpg AWD · real-world hwy ~32–33 mpg · AWD std" },
   { id:"tucson",    label:"Tucson Limited PHEV",      color:"#7c3aed", msrp:50150,  mpg:35,        dep:15, ins:1600, maint:800,  note:`⚠️ $50k+ · 32mi EV (${L2_LABEL}) · 35 mpg hybrid`, evRange:32 },
   { id:"niro",      label:"Sportage Hybrid SX Prestige", color:"#c2410c", msrp:42035,  mpg:35,        dep:13, ins:1400, maint:720,  note:"35 mpg AWD · 232hp · $42,035 incl dest · real-world ~34.8 mpg" },
-  { id:"tesla",     label:"Tesla Model 3 Prem RWD",  color:"#0f766e", msrp:44130,  mpg:0,         dep:18, ins:2200, maint:550,  note:`363 mi range · 4.1 mi/kWh · ${L2_LABEL}`, evRange:999 },
+  { id:"tesla",     label:"Tesla Model 3 Prem RWD",  color:"#0f766e", msrp:44130,  mpg:0, eff:TESLA_EFF, dep:18, ins:2200, maint:550,  note:`363 mi range · 4.1 mi/kWh · ${L2_LABEL} · CA rebate ✓`, evRange:999 },
+  { id:"modely",    label:"Tesla Model Y Prem RWD",  color:"#4338ca", msrp:47630,  mpg:0, eff:4.0,       dep:17, ins:2200, maint:550,  note:`357 mi range · ~4.0 mi/kWh · ${L2_LABEL} · $45,990 + fees · under $50k cap → CA rebate ✓`, evRange:999 },
+  { id:"rivianr2",  label:"Rivian R2 Premium",       color:"#a16207", msrp:55885,  mpg:0, eff:3.1,       dep:18, ins:2400, maint:650,  note:`330 mi AWD · ~3.1 mi/kWh est · ${L2_LABEL} · CA-built EV-only → $3,500 rebate despite >$50k · Premium trim (late-2026 avail)`, evRange:999, caHQ:true },
 ];
 
 function calcHYSBenefit(totalOutlay, loanYears, hysRate) {
@@ -126,8 +128,9 @@ export default function App() {
       let fuel;
       if (veh.id === "volvo") {
         fuel = (totalMi / VOLVO_MPG) * avgGas;
-      } else if (veh.id === "tesla") {
-        fuel = (totalMi / TESLA_EFF) * HOME_ELEC;
+      } else if (veh.eff) {
+        // Battery-electric (Model 3, Model Y, Rivian R2): home/L2 charging
+        fuel = (totalMi / veh.eff) * HOME_ELEC;
       } else if (evRange > 0) {
         // PHEV: per-day modeling
         const cityDpW = 7 - commuteDays;
@@ -161,10 +164,11 @@ export default function App() {
       const totalIns   = ins   * years;
       const totalMaint = maint * years;
 
-      // CA FIRST-TIME EV REBATE — new BEVs only (mpg 0 = battery-electric), MSRP ≤ $50k.
-      // PHEVs (evRange 32) and gas/hybrids excluded. Instant point-of-sale discount.
-      const isBEV     = msrp > 0 && mpg === 0 && evRange >= 999;
-      const evRebate  = firstTimeEvBuyer && isBEV && msrp <= CA_EV_REBATE_CAP ? CA_EV_REBATE : 0;
+      // CA FIRST-TIME EV REBATE — new BEVs only (veh.eff set = battery-electric), MSRP ≤ $50k.
+      // PHEVs and gas/hybrids excluded. $50k cap is waived for CA-HQ EV-only makers (Rivian/Lucid).
+      const isBEV     = msrp > 0 && !!veh.eff;
+      const capOK     = veh.caHQ || msrp <= CA_EV_REBATE_CAP;
+      const evRebate  = firstTimeEvBuyer && isBEV && capOK ? CA_EV_REBATE : 0;
 
       // NET TRUE COST
       const netCost = veh.id === "volvo"
@@ -212,7 +216,7 @@ export default function App() {
 
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", maxWidth: 1100, margin: "0 auto", padding: 14, fontSize: 12, colorScheme: "light", background: "#ffffff", color: "#111827" }}>
-      <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 2 }}>🚗 Car Cost-Benefit — 8 Scenarios</h2>
+      <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 2 }}>🚗 Car Cost-Benefit — 10 Scenarios</h2>
       <p style={{ fontSize: 10.5, color: "#6b7280", marginBottom: 10 }}>
         Net true cost · 8.75% CA sales tax · No federal EV/PHEV credit in 2026 · CA SB 168 $3,500 first-time-ZEV rebate (BEV ≤ $50k) · ⭐ = recommended
       </p>
@@ -260,7 +264,7 @@ export default function App() {
               </span>
             </label>
             <div style={{ fontSize: 10.5, color: "#6b7280", marginTop: 5, lineHeight: 1.6 }}>
-              Instant point-of-sale discount on new battery-electric vehicles ≤ $50k MSRP. No income cap; CA residents; one-time (first ZEV only). <strong>Applies to the Tesla Model 3 only</strong> — PHEVs (Tucson) don't qualify.
+              Instant point-of-sale discount on new battery-electric vehicles ≤ $50k MSRP. No income cap; CA residents; one-time (first ZEV only). <strong>Applies to the Tesla Model 3 &amp; Model Y and the Rivian R2</strong> (Rivian is CA-built &amp; EV-only, so its &gt;$50k price still qualifies; Tesla only under the $50k cap). PHEVs (Tucson) don't qualify.
             </div>
           </div>
 
@@ -359,7 +363,7 @@ export default function App() {
                   <th style={{ padding: "6px 8px", fontSize: 10, textAlign: "left", color: "#6b7280", borderBottom: "1px solid #e5e7eb" }}>Component</th>
                   {VEHICLES.map(v => (
                     <th key={v.id} style={{ padding: "6px 5px", fontSize: 9.5, textAlign: "right", color: v.color, borderBottom: "1px solid #e5e7eb", fontWeight: 700, whiteSpace: "nowrap" }}>
-                      {v.label.replace("Sport Touring", "ST").replace("Hybrid", "HV").replace("Premium", "Prem").replace("Limited", "Ltd").replace("Model 3 Prem RWD", "M3 RWD")}
+                      {v.label.replace("Sport Touring", "ST").replace("Hybrid", "HV").replace("Premium", "Prem").replace("Limited", "Ltd").replace("Model 3 Prem RWD", "M3 RWD").replace("Model Y Prem RWD", "MY RWD").replace("Rivian R2 Prem", "R2 Prem")}
                     </th>
                   ))}
                 </tr>
@@ -502,7 +506,7 @@ export default function App() {
 
           {/* Footer notes */}
           <div style={{ background: "#fff7ed", borderRadius: 8, padding: 10, border: "1px solid #fed7aa", fontSize: 10, color: "#7c2d12" }}>
-            <strong>Notes:</strong> Volvo 24 mpg · Tesla: {L2_LABEL}, 4.1 mi/kWh · Tucson PHEV: 32mi EV range, {L2_LABEL} · Tucson HV Limited: EPA 36 mpg AWD, real-world hwy ~32–33 mpg · Sportage Hybrid SX Prestige: EPA 35 mpg AWD, real-world ~34.8 mpg · 8.75% CA sales tax on all new cars · CA SB 168 (signed 2026-07-13): $3,500 instant point-of-sale rebate for first-time ZEV buyers on new BEVs ≤ $50k MSRP — applies to Model 3 only (Tesla left CA so no cap waiver; PHEVs excluded) · Opp. cost = total purchase × ((1+r)^n − 1); zeroed for Tucsons when financing toggled · Dep: declining-balance from MSRP · Trade-in applied before tax.
+            <strong>Notes:</strong> Volvo 24 mpg · BEVs ({L2_LABEL}): Model 3 4.1 mi/kWh, Model Y ~4.0, Rivian R2 ~3.1 (est) · Tucson PHEV: 32mi EV range, {L2_LABEL} ·Tucson HV Limited: EPA 36 mpg AWD, real-world hwy ~32–33 mpg · Sportage Hybrid SX Prestige: EPA 35 mpg AWD, real-world ~34.8 mpg · 8.75% CA sales tax on all new cars · CA SB 168 (signed 2026-07-13): $3,500 instant point-of-sale rebate for first-time ZEV buyers on new BEVs ≤ $50k MSRP — applies to Tesla Model 3 & Model Y (sub-$50k) and Rivian R2 (CA-HQ EV-only maker → $50k cap waived); PHEVs excluded · Opp. cost = total purchase × ((1+r)^n − 1); zeroed for Tucsons when financing toggled · Dep: declining-balance from MSRP · Trade-in applied before tax.
           </div>
         </div>
       </div>
