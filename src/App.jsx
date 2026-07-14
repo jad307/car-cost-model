@@ -9,9 +9,16 @@ const L2_LABEL = "$0.35/kWh apartment L2 charger";
 const SALES_TAX = 0.0875;
 const TUCSON_KIA_IDS = ["tucsonhv", "tucson", "niro"];
 
+// CA "MyFirstEV" rebate (SB 168, signed 2026-07-13): $3,500 instant point-of-sale
+// discount for first-time ZEV buyers on NEW battery-electric vehicles with MSRP ≤ $50k.
+// No income cap; CA residents only. PHEVs do NOT qualify (BEVs only). In this model the
+// Tesla Model 3 (sub-$50k) is the only eligible vehicle; the Tucson PHEV is excluded.
+const CA_EV_REBATE = 3500;
+const CA_EV_REBATE_CAP = 50000;
+
 const VEHICLES = [
   { id:"volvo",     label:"Keep Volvo V90",          color:"#6d28d9", msrp:0,      mpg:VOLVO_MPG, dep:11, ins:1200, maint:1400, note:"80k mi · confirmed $1,200/yr ins" },
-  { id:"crv",       label:"CR-V Sport Touring HV",   color:"#dc2626", msrp:43700,  mpg:35,        dep:14, ins:1500, maint:750,  note:"EPA 37 mpg AWD · Edmunds real-world: 33.3 mpg hwy" },
+  { id:"crv",       label:"CR-V Sport Touring HV",   color:"#dc2626", msrp:42550,  mpg:35,        dep:14, ins:1500, maint:750,  note:"EPA 37 mpg AWD · Edmunds real-world: 33.3 mpg hwy · $42,550 MSRP incl dest (2026)" },
   { id:"rav4h",     label:"RAV4 Hybrid XSE ⭐",      color:"#0369a1", msrp:42750,  mpg:41,        dep:13, ins:1450, maint:750,  note:"EPA 41 mpg AWD · recommended trim" },
   { id:"crosstrek", label:"Crosstrek Hybrid Prem",   color:"#166534", msrp:40000,  mpg:36,        dep:14, ins:1400, maint:800,  note:"Non-plug-in · 36 mpg" },
   { id:"tucsonhv",  label:"Tucson Hybrid Limited",   color:"#0e7490", msrp:43425,  mpg:33,        dep:14, ins:1550, maint:780,  note:"EPA 36 mpg AWD · real-world hwy ~32–33 mpg · AWD std" },
@@ -77,13 +84,14 @@ export default function App() {
   const [cityMilesPerWeek, setCityMilesPerWeek] = useState(50);
 
   // Gas
-  const [gasPrice, setGasPrice] = useState(4.74);
+  const [gasPrice, setGasPrice] = useState(4.76);
   const [gasInflation, setGasInflation] = useState(12);
 
   // Financial
   const [tradeIn, setTradeIn] = useState(16500);
   const [investReturn, setInvestReturn] = useState(5);
   const [tucsonFinance, setTucsonFinance] = useState(false);
+  const [firstTimeEvBuyer, setFirstTimeEvBuyer] = useState(true);
 
   // Per-vehicle overrides
   const [overrides, setOverrides] = useState({});
@@ -153,20 +161,25 @@ export default function App() {
       const totalIns   = ins   * years;
       const totalMaint = maint * years;
 
+      // CA FIRST-TIME EV REBATE — new BEVs only (mpg 0 = battery-electric), MSRP ≤ $50k.
+      // PHEVs (evRange 32) and gas/hybrids excluded. Instant point-of-sale discount.
+      const isBEV     = msrp > 0 && mpg === 0 && evRange >= 999;
+      const evRebate  = firstTimeEvBuyer && isBEV && msrp <= CA_EV_REBATE_CAP ? CA_EV_REBATE : 0;
+
       // NET TRUE COST
       const netCost = veh.id === "volvo"
         ? fuel + totalIns + totalMaint + depCost
-        : totalPurch + fuel + totalIns + totalMaint - endVal + opp;
+        : totalPurch + fuel + totalIns + totalMaint - endVal + opp - evRebate;
 
       return {
         id: veh.id, label: veh.label, color: veh.color, note: veh.note,
         msrp, netOutlay, salesTax, totalPurch, fuel, opp, depCost,
-        ins: totalIns, maint: totalMaint, endVal, isFinanced,
+        ins: totalIns, maint: totalMaint, endVal, isFinanced, evRebate,
         total: netCost,
       };
     });
   }, [years, commuteDays, commuteMiles, cityMilesPerWeek,
-      gasPrice, gasInflation, tradeIn, investReturn, tucsonFinance, overrides]);
+      gasPrice, gasInflation, tradeIn, investReturn, tucsonFinance, firstTimeEvBuyer, overrides]);
 
   const totalMiPerWk = commuteDays * commuteMiles + cityMilesPerWeek;
   const totalMi = totalMiPerWk * wpy * years;
@@ -188,6 +201,7 @@ export default function App() {
   const rowKeys = [
     { label: `Net purchase (after ${fmt(tradeIn)} trade-in)`, key: "netOutlay" },
     { label: "Sales tax (8.75%)", key: "salesTax" },
+    ...(firstTimeEvBuyer ? [{ label: "CA first-time EV rebate (BEV ≤ $50k)", key: "evRebate", negative: true }] : []),
     { label: `Fuel/charging (avg gas $${avgGas.toFixed(2)}/gal)`, key: "fuel" },
     { label: "Insurance", key: "ins" },
     { label: "Maintenance", key: "maint" },
@@ -200,7 +214,7 @@ export default function App() {
     <div style={{ fontFamily: "system-ui, sans-serif", maxWidth: 1100, margin: "0 auto", padding: 14, fontSize: 12, colorScheme: "light", background: "#ffffff", color: "#111827" }}>
       <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 2 }}>🚗 Car Cost-Benefit — 8 Scenarios</h2>
       <p style={{ fontSize: 10.5, color: "#6b7280", marginBottom: 10 }}>
-        Net true cost · 8.75% CA sales tax · No federal EV/PHEV credit in 2026 · ⭐ = recommended
+        Net true cost · 8.75% CA sales tax · No federal EV/PHEV credit in 2026 · CA SB 168 $3,500 first-time-ZEV rebate (BEV ≤ $50k) · ⭐ = recommended
       </p>
 
       <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 11 }}>
@@ -231,10 +245,24 @@ export default function App() {
           <SH t="CA Gas Price" />
           <Slider label="Current gas price" value={gasPrice} min={3.50} max={8.00} step={0.05}
             display={v => `$${v.toFixed(2)}`} onChange={setGasPrice}
-            note="CA avg $4.74 · refinery closures may push $6+" />
+            note="CA avg $4.76 (Jul 2026, AAA) · spiked to $5.37 early Jul · refinery closures may push $6+" />
           <Slider label="Annual increase" value={gasInflation} min={0} max={50} step={1}
             display={v => `${v}%/yr`} onChange={setGasInflation}
             note="Default 12% reflects refinery closures" />
+
+          <SH t="CA First-Time EV Rebate" />
+          <div style={{ background: firstTimeEvBuyer ? "#f0fdf4" : "#fefce8", border: `1px solid ${firstTimeEvBuyer ? "#bbf7d0" : "#fef08a"}`, borderRadius: 8, padding: 10, marginBottom: 4 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <input type="checkbox" checked={firstTimeEvBuyer} onChange={e => setFirstTimeEvBuyer(e.target.checked)}
+                style={{ width: 15, height: 15, accentColor: "#166534" }} />
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: firstTimeEvBuyer ? "#166534" : "#713f12" }}>
+                {firstTimeEvBuyer ? "✓ First-time ZEV buyer — $3,500 rebate applied" : "First-time ZEV buyer? (SB 168 $3,500 rebate)"}
+              </span>
+            </label>
+            <div style={{ fontSize: 10.5, color: "#6b7280", marginTop: 5, lineHeight: 1.6 }}>
+              Instant point-of-sale discount on new battery-electric vehicles ≤ $50k MSRP. No income cap; CA residents; one-time (first ZEV only). <strong>Applies to the Tesla Model 3 only</strong> — PHEVs (Tucson) don't qualify.
+            </div>
+          </div>
 
           <SH t="Hyundai / Kia Financing" />
           <div style={{ background: tucsonFinance ? "#f0fdf4" : "#fefce8", border: `1px solid ${tucsonFinance ? "#bbf7d0" : "#fef08a"}`, borderRadius: 8, padding: 10, marginBottom: 4 }}>
@@ -474,7 +502,7 @@ export default function App() {
 
           {/* Footer notes */}
           <div style={{ background: "#fff7ed", borderRadius: 8, padding: 10, border: "1px solid #fed7aa", fontSize: 10, color: "#7c2d12" }}>
-            <strong>Notes:</strong> Volvo 24 mpg · Tesla: {L2_LABEL}, 4.1 mi/kWh · Tucson PHEV: 32mi EV range, {L2_LABEL} · Tucson HV Limited: EPA 36 mpg AWD, real-world hwy ~32–33 mpg · Sportage Hybrid SX Prestige: EPA 35 mpg AWD, real-world ~34.8 mpg · 8.75% CA sales tax on all new cars · Opp. cost = total purchase × ((1+r)^n − 1); zeroed for Tucsons when financing toggled · Dep: declining-balance from MSRP · Trade-in applied before tax.
+            <strong>Notes:</strong> Volvo 24 mpg · Tesla: {L2_LABEL}, 4.1 mi/kWh · Tucson PHEV: 32mi EV range, {L2_LABEL} · Tucson HV Limited: EPA 36 mpg AWD, real-world hwy ~32–33 mpg · Sportage Hybrid SX Prestige: EPA 35 mpg AWD, real-world ~34.8 mpg · 8.75% CA sales tax on all new cars · CA SB 168 (signed 2026-07-13): $3,500 instant point-of-sale rebate for first-time ZEV buyers on new BEVs ≤ $50k MSRP — applies to Model 3 only (Tesla left CA so no cap waiver; PHEVs excluded) · Opp. cost = total purchase × ((1+r)^n − 1); zeroed for Tucsons when financing toggled · Dep: declining-balance from MSRP · Trade-in applied before tax.
           </div>
         </div>
       </div>
